@@ -14,18 +14,18 @@ const AUDIO_PATHS = [
     'CH0325_MemorialLobby_4_3.wav',
     'CH0325_MemorialLobby_5_1.wav',
     'CH0325_MemorialLobby_5_2.wav',
-    // Note: semua nama file audio taunt diatas berasal dari loadJson.json
+    // Note: semua nama file audio taunt diatas berasal dari loadJson.json, dan sudah benar
 ];
 
+let filesLoaded = 0;
+const totalFiles = AUDIO_PATHS.length;
+
 /**
- * Fungsi untuk melakukan pre-caching file audio.
- * Dengan membuat elemen Audio dan memanggil load(), kita memaksa browser 
- * untuk mengunduh file audio di latar belakang.
+ * Fungsi untuk melakukan pre-caching file audio dengan logging verbose.
+ * Memanfaatkan event oncanplaythrough untuk menandai keberhasilan load.
  */
 function precacheAudioFiles() {
-    // Memulai proses di latar belakang
-    console.log("Memulai pre-caching file audio...");
-    let cachedCount = 0;
+    console.log(`[Precache Audio] Memulai pre-caching ${totalFiles} file audio...`);
     
     AUDIO_PATHS.forEach(path => {
         const audio = new Audio();
@@ -34,22 +34,35 @@ function precacheAudioFiles() {
         audio.preload = 'auto'; 
         audio.src = path;
         
+        // Log keberhasilan
         audio.oncanplaythrough = () => {
-            cachedCount++;
-            if (cachedCount === AUDIO_PATHS.length) {
-                console.log("Semua file audio selesai di-pre-cache.");
-            }
+            console.log(`[Precache Audio] BERHASIL dimuat: ${path}`);
+            audio.oncanplaythrough = null; // Hapus listener untuk menghindari double-count
+            audio.onerror = null;         // Hapus listener error juga
+            
+            filesLoaded++;
+            checkCompletion();
         };
 
-        audio.onerror = () => {
-            console.warn(`[Precache Audio] Gagal memuat audio: ${path}`);
-            cachedCount++; // Tetap hitung meskipun gagal
+        // Log kegagalan
+        audio.onerror = (e) => {
+            console.error(`[Precache Audio] GAGAL memuat audio: ${path}`, e);
+            audio.oncanplaythrough = null; // Hapus listener keberhasilan
+            audio.onerror = null;         // Hapus listener error juga
+            
+            filesLoaded++;
+            checkCompletion();
         };
 
         // Memulai proses pengunduhan.
-        // File audio tidak akan diputar, hanya akan dimuat ke cache browser.
         audio.load();
     });
+}
+
+function checkCompletion() {
+    if (filesLoaded === totalFiles) {
+        console.log(`[Precache Audio] Selesai: ${filesLoaded} dari ${totalFiles} file diproses.`);
+    }
 }
 
 // Jalankan fungsi precache setelah DOM siap.
